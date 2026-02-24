@@ -65,7 +65,8 @@ class TranscriptionApp:
         device: str = "cpu", 
         compute_type: str = "auto", 
         use_speaker_detection: bool = True,
-        info_callback: Optional[callable] = None
+        info_callback: Optional[callable] = None,
+        progress_callback: Optional[callable] = None
     ):
         """
         Initialize the transcription app.
@@ -80,6 +81,7 @@ class TranscriptionApp:
         self.compute_type = compute_type
         self.use_speaker_detection = use_speaker_detection
         self.info_callback = info_callback
+        self.progress_callback = progress_callback
         self.diarization_pipeline = None
 
         if device == "auto":
@@ -176,15 +178,28 @@ class TranscriptionApp:
         return f"{hours:02d}:{minutes:02d}:{secs:02d}.{milliseconds:03d}"
 
     def transcribe(self, audio_path: str, language: str = None):
-        """Transcribe audio file"""
+        """Transcribe audio file with progress reporting"""
         print(f"\nTranscribing: {audio_path}")
-        segments, info = self.model.transcribe(
+        segments_gen, info = self.model.transcribe(
             audio_path,
             language=language,
-            beam_size=5, best_of=5, patience=1.0, length_penalty=1.0,
-            temperature=0.0, compression_ratio_threshold=2.4, no_speech_threshold=0.6
+            beam_size=5,
+            word_timestamps=False
         )
-        return list(segments), info
+        
+        full_segments = []
+        duration = info.duration
+        
+        for segment in segments_gen:
+            full_segments.append(segment)
+            if self.progress_callback and duration > 0:
+                percent = min(100, int((segment.end / duration) * 100))
+                self.progress_callback(percent)
+        
+        if self.progress_callback:
+            self.progress_callback(100)
+            
+        return full_segments, info
 
     def generate_sentence_timestamps(self, segments):
         """Generate sentence-level timestamps"""
@@ -497,15 +512,22 @@ class TranscriberGUI:
             def status_update(msg):
                 self.root.after(0, lambda: self.progress_var.set(msg))
 
+            # Use progress_callback to update progress bar and percentage
+            def progress_update(percent):
+                def _update():
+                    self.progress_bar['value'] = percent
+                    self.progress_var.set(f"Transcribing... ({percent}%)")
+                self.root.after(0, _update)
+
             app = TranscriptionApp(
                 model_size="base", 
                 device=self.device_var.get(), 
                 use_speaker_detection=True,
-                info_callback=status_update
+                info_callback=status_update,
+                progress_callback=progress_update
             )
             
             p = Path(self.file_path.get())
-            self.progress_var.set(f"Transcribing {p.name}...")
             app.process_file(str(p))
             
             self.progress_var.set("Done!")
@@ -516,7 +538,7 @@ class TranscriberGUI:
         finally:
             self.is_processing = False
             self.start_btn.config(state="normal", text="Start Transcription")
-            self.progress_bar.stop()
+            self.progress_bar.config(mode='indeterminate', value=0)
             self.root.update()
 
 
