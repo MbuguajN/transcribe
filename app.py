@@ -64,7 +64,8 @@ class TranscriptionApp:
         model_size: str = "base", 
         device: str = "cpu", 
         compute_type: str = "auto", 
-        use_speaker_detection: bool = True
+        use_speaker_detection: bool = True,
+        info_callback: Optional[callable] = None
     ):
         """
         Initialize the transcription app.
@@ -78,6 +79,7 @@ class TranscriptionApp:
         self.device = device
         self.compute_type = compute_type
         self.use_speaker_detection = use_speaker_detection
+        self.info_callback = info_callback
         self.diarization_pipeline = None
 
         if device == "auto":
@@ -92,6 +94,7 @@ class TranscriptionApp:
             print("Warning: float16 not supported on CPU. Falling back to float32.")
             self.compute_type = "float32"
 
+        if self.info_callback: self.info_callback(f"Loading Whisper Engine ({self.device})...")
         print(f"Loading Faster-Whisper model: {model_size} ({self.device}/{self.compute_type})...")
         self.model = WhisperModel(
             model_size,
@@ -106,6 +109,7 @@ class TranscriptionApp:
 
     def _init_diarization(self):
         """Initialize speaker diarization pipeline with fallback logic."""
+        if self.info_callback: self.info_callback("Loading Diarization Model...")
         print("Loading speaker diarization model...")
         token = os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HF_TOKEN")
         kwargs = {"token": token} if token else {}
@@ -488,7 +492,17 @@ class TranscriberGUI:
     def _run(self):
         try:
             self.progress_var.set("Initializing AI...")
-            app = TranscriptionApp(model_size="base", device=self.device_var.get(), use_speaker_detection=True)
+            
+            # Use info_callback to update GUI status during long init steps
+            def status_update(msg):
+                self.root.after(0, lambda: self.progress_var.set(msg))
+
+            app = TranscriptionApp(
+                model_size="base", 
+                device=self.device_var.get(), 
+                use_speaker_detection=True,
+                info_callback=status_update
+            )
             
             p = Path(self.file_path.get())
             self.progress_var.set(f"Transcribing {p.name}...")
