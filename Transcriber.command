@@ -3,11 +3,15 @@ cd "$(dirname "$0")"
 
 # 🎛️ Transcriber - Smart Launcher
 
-# 1. Instant Launch (If installed)
+# 1. Instant Launch (Check if fully installed)
 if [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
-    python3 app.py gui
-    exit 0
+    python3 -c "import faster_whisper, ttkbootstrap, torch" &> /dev/null
+    if [ $? -eq 0 ]; then
+        python3 app.py gui
+        exit 0
+    fi
+    echo "[NOTICE] Dependencies missing or corrupted. Running setup..."
 fi
 
 # 2. Setup Flow (Only runs first time)
@@ -26,16 +30,16 @@ echo "[1/3] Creating environment..."
 python3 -m venv venv
 source venv/bin/activate
 
-echo "[2/3] Installing AI components..."
-python -m pip install --upgrade pip --quiet
+echo "[2/3] Installing AI components (this may take a few mins)..."
+python -m pip install --upgrade pip
 
 echo ""
 read -p "Do you have an NVIDIA GPU with CUDA? (y/N): " gpuchoice
 if [[ "$gpuchoice" =~ ^[Yy]$ ]]; then
-    python -m pip install --quiet faster-whisper pydub moviepy ttkbootstrap librosa scikit-learn torch torchaudio
+    python -m pip install faster-whisper pydub moviepy ttkbootstrap librosa scikit-learn torch torchaudio
 else
-    python -m pip install --quiet faster-whisper pydub moviepy ttkbootstrap librosa scikit-learn
-    python -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu --quiet
+    python -m pip install faster-whisper pydub moviepy ttkbootstrap librosa scikit-learn
+    python -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 fi
 
 echo "[3/3] Finalizing setup..."

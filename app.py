@@ -70,7 +70,9 @@ class TranscriptionApp:
         Initialize the transcription app.
         """
         if not HAS_TRANSCRIBER_DEPS:
-            raise ImportError("Required packages not installed. Run: python app.py setup")
+            print("[ERROR] Required packages not installed.")
+            print("Please run the 'Transcriber' launcher (.bat or .command) to complete setup.")
+            sys.exit(1)
 
         self.model_size = model_size
         self.device = device
