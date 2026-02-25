@@ -577,7 +577,8 @@ def install_packages():
     choice = input("Do you have a CUDA-capable NVIDIA GPU? (y/N): ").strip().lower()
     if choice == 'y':
         print("[SETUP] Installing dependencies with GPU support...")
-        subprocess.run([pip_exe, "install", "--quiet", "faster-whisper", "pydub", "moviepy", "ttkbootstrap", "librosa", "scikit-learn", "torch", "torchaudio"])
+        subprocess.run([pip_exe, "install", "--quiet", "faster-whisper", "pydub", "moviepy", "ttkbootstrap", "librosa", "scikit-learn"])
+        subprocess.run([pip_exe, "install", "torch", "torchaudio", "--index-url", "https://download.pytorch.org/whl/cu126", "--quiet"])
     else:
         print("[SETUP] Installing CPU-only requirements...")
         subprocess.run([pip_exe, "install", "--quiet", "faster-whisper", "pydub", "moviepy", "ttkbootstrap", "librosa", "scikit-learn"])

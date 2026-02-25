@@ -43,7 +43,8 @@ echo.
 echo Do you have an NVIDIA GPU? (y/N)
 set /p gpuchoice=: 
 if /I "%gpuchoice%"=="y" (
-    python -m pip install faster-whisper pydub moviepy ttkbootstrap librosa scikit-learn torch torchaudio
+    python -m pip install faster-whisper pydub moviepy ttkbootstrap librosa scikit-learn
+    python -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu126
 ) else (
     python -m pip install faster-whisper pydub moviepy ttkbootstrap librosa scikit-learn
     python -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
