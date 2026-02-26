@@ -519,9 +519,29 @@ class TranscriberGUI:
                     self.progress_var.set(f"Transcribing... ({percent}%)")
                 self.root.after(0, _update)
 
+            # GPU fallback: check CUDA availability before attempting GPU mode
+            selected_device = self.device_var.get()
+            if selected_device == "cuda":
+                try:
+                    import torch as _torch
+                    if not _torch.cuda.is_available():
+                        self.root.after(0, lambda: messagebox.showwarning(
+                            "GPU Unavailable",
+                            "CUDA is not available on this system.\n\n"
+                            "Possible reasons:\n"
+                            "• No NVIDIA GPU installed\n"
+                            "• NVIDIA drivers not installed\n"
+                            "• PyTorch CPU-only version installed\n\n"
+                            "Falling back to CPU mode."
+                        ))
+                        selected_device = "cpu"
+                        self.root.after(0, lambda: self.device_var.set("cpu"))
+                except ImportError:
+                    selected_device = "cpu"
+
             app = TranscriptionApp(
                 model_size="base", 
-                device=self.device_var.get(), 
+                device=selected_device, 
                 use_speaker_detection=True,
                 info_callback=status_update,
                 progress_callback=progress_update
@@ -621,27 +641,38 @@ def verify_setup():
 
     # Python
     version = sys.version.split()[0]
-    print(f"\nPython: {version} ✓")
+    print(f"\nPython: {version} [OK]")
 
     # Packages
     print("\nPackages:")
     for module, name in [("faster_whisper", "Faster-Whisper"), ("torch", "PyTorch"), ("moviepy", "MoviePy")]:
         try:
             __import__(module)
-            print(f"  ✓ {name}")
+            print(f"  [OK]   {name}")
         except:
-            print(f"  ✗ {name}")
+            print(f"  [FAIL] {name}")
 
     # CUDA
     print("\nHardware:")
     try:
         import torch
+        print(f"  PyTorch version: {torch.__version__}")
         if torch.cuda.is_available():
-            print(f"  ✓ CUDA available ({torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB VRAM)")
+            gpu_name = torch.cuda.get_device_name(0)
+            vram = torch.cuda.get_device_properties(0).total_memory / 1e9
+            print(f"  [OK]   CUDA available: {gpu_name} ({vram:.1f} GB VRAM)")
+            print(f"  [OK]   GPU mode: READY")
         else:
-            print("  ⚠ CPU only (slower)")
-    except:
-        print("  ⚠ Could not check CUDA")
+            cuda_tag = "+cu" in torch.__version__
+            print(f"  [WARN] CUDA not available (GPU mode will fall back to CPU)")
+            if cuda_tag:
+                print(f"         PyTorch has CUDA support built-in, but no GPU was detected.")
+                print(f"         Check: NVIDIA drivers installed? GPU present?")
+            else:
+                print(f"         PyTorch is CPU-only. To enable GPU, reinstall with CUDA support.")
+            print(f"  [OK]   CPU mode: READY")
+    except Exception as e:
+        print(f"  [WARN] Could not check CUDA: {e}")
 
 
 def launch_gui():
